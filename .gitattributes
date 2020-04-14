@@ -4,4 +4,5 @@
 *.cs linguist-detectable=true
 *.asset linguist-detectable=false
 *.mat linguist-detectable=false
+*.shader linguist-detectable=false
 *.meta linguist-detectable=false
