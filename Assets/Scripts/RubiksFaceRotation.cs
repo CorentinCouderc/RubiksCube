@@ -6,6 +6,8 @@ public enum FaceRotation { CLOCKWISE, COUNTERCLOCKWISE }
 
 public class RubiksFaceRotation : MonoBehaviour
 {
+	public delegate void RotationCallback(RubiksColor faceColor, FaceRotation direction);
+
 	public void Awake()
 	{
 		if (m_cubes == null)
@@ -16,11 +18,11 @@ public class RubiksFaceRotation : MonoBehaviour
 
 	public enum RubiksFace { NONE, UP, LEFT, RIGHT, BOTTOM, RIGHT_OPPOSITE, LEFT_OPPOSITE }
 
-	public void Rotate(RubiksFace faceToRotate, FaceRotation direction, GameObject faceGO, float rotationDuration)
+	public void Rotate(RubiksFace faceToRotate, FaceRotation direction, GameObject faceGO, float rotationDuration, RotationCallback callback = null)
 	{
 		RubiksCubeRotation.SetRotationState(RubiksCubeRotation.RotationState.ROTATING);
 		SetRubiksFaceParents(faceToRotate, faceGO);
-		StartCoroutine(RotateFace(faceToRotate, direction, faceGO, rotationDuration));
+		StartCoroutine(RotateFace(faceToRotate, direction, faceGO, rotationDuration, callback));
 	}
 
 	public void SetHighlightMaterial(RubiksFace face, bool set, bool fromButton = false)
@@ -107,7 +109,7 @@ public class RubiksFaceRotation : MonoBehaviour
 
 	private void Update()
 	{
-		if (!RubiksCubeRotation.IsRotating && !m_rubiksCubeManager.IsApplyingSequence)
+		if (!RubiksCubeRotation.IsRotating && !m_rubiksCubeManager.IsApplyingSequence && !m_rubiksCubeManager.IsVictoryPopupActive)
 		{
 			RubiksFace previousFace = m_faceToRotate;
 			bool didRaycastHit = TryRaycast();
@@ -126,17 +128,30 @@ public class RubiksFaceRotation : MonoBehaviour
 			{
 				if (didRaycastHit)
 				{
-					Rotate(m_faceToRotate, FaceRotation.CLOCKWISE, m_faceGO, m_rotationSpeed);
-					m_rubiksCubeManager.Logic.RotateFaceClockWise(m_faceColor);
+					Rotate(m_faceToRotate, FaceRotation.CLOCKWISE, m_faceGO, m_rotationSpeed, OnRotationFinished);
 				}
 			}
 			else if (Input.GetMouseButtonDown(1))
 			{
 				if (didRaycastHit)
 				{
-					Rotate(m_faceToRotate, FaceRotation.COUNTERCLOCKWISE, m_faceGO, m_rotationSpeed);
-					m_rubiksCubeManager.Logic.RotateFaceCounterClockWise(m_faceColor);
+					Rotate(m_faceToRotate, FaceRotation.COUNTERCLOCKWISE, m_faceGO, m_rotationSpeed, OnRotationFinished);
 				}
+			}
+		}
+	}
+
+	private void OnRotationFinished(RubiksColor color, FaceRotation direction)
+	{
+		if (color != RubiksColor.NONE)
+		{
+			if (direction == FaceRotation.CLOCKWISE)
+			{
+				m_rubiksCubeManager.Logic.RotateFaceClockWise(color);
+			}
+			else if (direction == FaceRotation.COUNTERCLOCKWISE)
+			{
+				m_rubiksCubeManager.Logic.RotateFaceCounterClockWise(color);
 			}
 		}
 	}
@@ -173,7 +188,7 @@ public class RubiksFaceRotation : MonoBehaviour
 		return false;
 	}
 
-	private IEnumerator RotateFace(RubiksFace faceToRotate, FaceRotation direction, GameObject faceGO, float duration = 1.0f)
+	private IEnumerator RotateFace(RubiksFace faceToRotate, FaceRotation direction, GameObject faceGO, float duration = 1.0f, RotationCallback callback = null)
 	{
 		Quaternion from = faceGO.transform.localRotation;
 		Quaternion to = faceGO.transform.localRotation;
@@ -190,7 +205,34 @@ public class RubiksFaceRotation : MonoBehaviour
 		faceGO.transform.rotation = to;
 
 		ResetRubiksFaceParents();
+		callback?.Invoke(GetFaceColor(faceToRotate), direction);
 		RubiksCubeRotation.SetRotationState(RubiksCubeRotation.RotationState.IDLE);
+	}
+
+	private RubiksColor GetFaceColor(RubiksFace faceToRotate)
+	{
+		switch (faceToRotate)
+		{
+			case RubiksFace.LEFT:
+				return m_rubiksCubeManager.LeftFaceColor;
+
+			case RubiksFace.LEFT_OPPOSITE:
+				return m_rubiksCubeManager.Logic.RubiksOppositeColor[m_rubiksCubeManager.LeftFaceColor];
+
+			case RubiksFace.RIGHT:
+				return m_rubiksCubeManager.RightFaceColor;
+
+			case RubiksFace.RIGHT_OPPOSITE:
+				return m_rubiksCubeManager.Logic.RubiksOppositeColor[m_rubiksCubeManager.RightFaceColor];
+
+			case RubiksFace.UP:
+				return m_rubiksCubeManager.UpFaceColor;
+
+			case RubiksFace.BOTTOM:
+				return m_rubiksCubeManager.Logic.RubiksOppositeColor[m_rubiksCubeManager.UpFaceColor];
+
+			default: return RubiksColor.NONE;
+		}
 	}
 
 	private float GetMultiplierForRotation(RubiksFace faceToRotate, FaceRotation direction)

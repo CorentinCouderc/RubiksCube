@@ -20,8 +20,9 @@ public class InputSequenceHandler : MonoBehaviour
 
 	public void ClearInputSequence()
 	{
-		m_inputSequence = "";
+		m_inputSequence = string.Empty;
 		m_inputFieldText.text = m_inputSequence;
+		m_maxCharactersBeforeNewLine = m_baseMaxCharactersBeforeNewLine;
 		ResetButtons();
 	}
 
@@ -72,6 +73,11 @@ public class InputSequenceHandler : MonoBehaviour
 
 	private void AddToSequence(char color, char direction)
 	{
+		if (m_inputSequence.Length + 3 > m_maxCharactersBeforeNewLine)
+		{
+			m_inputSequence += "\n";
+			m_maxCharactersBeforeNewLine = 2 * m_baseMaxCharactersBeforeNewLine;
+		}
 		m_inputSequence += $"{color}{direction}_";
 		m_inputFieldText.text = m_inputSequence;
 	}
@@ -102,6 +108,7 @@ public class InputSequenceHandler : MonoBehaviour
 	private void Start()
 	{
 		m_inputFieldText = GameObject.FindGameObjectsWithTag("InputField")[0].GetComponentInChildren<TextMeshProUGUI>();
+		m_maxCharactersBeforeNewLine = m_baseMaxCharactersBeforeNewLine;
 
 		foreach (GameObject go in GameObject.FindGameObjectsWithTag("ColorButton"))
 		{
@@ -114,7 +121,7 @@ public class InputSequenceHandler : MonoBehaviour
 		}
 	}
 
-	private string m_inputSequence = null;
+	private string m_inputSequence = string.Empty;
 	private TextMeshProUGUI m_inputFieldText = null;
 
 	private char m_colorToAdd = default(char);
@@ -125,6 +132,11 @@ public class InputSequenceHandler : MonoBehaviour
 
 	private bool m_alreadySelectedColor = false;
 
+	private int m_maxCharactersBeforeNewLine = 0;
+
 	[SerializeField]
 	private RubiksCubeManager m_rubiksCubeManager = null;
+
+	[SerializeField]
+	private int m_baseMaxCharactersBeforeNewLine = 40;
 }

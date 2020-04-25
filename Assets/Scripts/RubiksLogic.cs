@@ -215,7 +215,22 @@ public class RubiksLogic
 {
 	public Dictionary<RubiksColor, RubiksFace> RubiksData { get { return m_rubiksData; } }
 	public Dictionary<RubiksColor, RubiksColor> RubiksOppositeColor { get { return m_rubiksOppositeColor; } }
-	public bool IsSolved { get { return m_isSolved; } }
+
+	public bool IsSolved
+	{
+		get
+		{
+			bool isSolved = true;
+			foreach (RubiksColor faceColor in Enum.GetValues(typeof(RubiksColor)))
+			{
+				if (faceColor != RubiksColor.NONE)
+				{
+					isSolved &= RubiksData[faceColor].CheckFace(faceColor);
+				}
+			}
+			return isSolved;
+		}
+	}
 
 	public RubiksLogic()
 	{
@@ -273,7 +288,6 @@ public class RubiksLogic
 		toRotate.RotateFaceClockWise();
 		RotateSidesClockWise(toRotate);
 
-		m_isSolved = RubiksData[faceColor].CheckFace(faceColor);
 #if UNITY_EDITOR || DEVELOPMENT_BUILD
 		Debug.Log(this.ToString());
 #endif
@@ -285,8 +299,6 @@ public class RubiksLogic
 
 		toRotate.RotateFaceCounterClockWise();
 		RotateSidesCounterClockWise(toRotate);
-
-		m_isSolved = RubiksData[faceColor].CheckFace(faceColor);
 
 #if UNITY_EDITOR || DEVELOPMENT_BUILD
 		Debug.Log(this.ToString());
@@ -597,5 +609,4 @@ public class RubiksLogic
 
 	private Dictionary<RubiksColor, RubiksFace> m_rubiksData = new Dictionary<RubiksColor, RubiksFace>();
 	private Dictionary<RubiksColor, RubiksColor> m_rubiksOppositeColor = new Dictionary<RubiksColor, RubiksColor>();
-	private bool m_isSolved = false;
 }

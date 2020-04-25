@@ -11,6 +11,7 @@ public class RubiksCubeManager : MonoBehaviour
 	public RubiksColor RightFaceColor { get; set; }
 	public RubiksColor UpFaceColor { get; set; }
 	public bool IsApplyingSequence { get { return m_isApplyingSequence; } }
+	public bool IsVictoryPopupActive { get { return m_victoryPopup.activeInHierarchy; } }
 
 	public static string[] FaceColors = new string[] { "W", "Y", "B", "G", "R", "O" };
 	public static string[] FaceDirections = new string[] { "C", "A" };
@@ -34,6 +35,7 @@ public class RubiksCubeManager : MonoBehaviour
 	public void Retry()
 	{
 		m_victoryPopup.SetActive(false);
+		m_wasSolved = false;
 		ShuffleRubiksCube();
 		m_startTime = DateTime.UtcNow;
 	}
@@ -46,7 +48,10 @@ public class RubiksCubeManager : MonoBehaviour
 		RightFaceColor = RubiksColor.WHITE;
 		UpFaceColor = RubiksColor.RED;
 		m_rubiksLogic = new RubiksLogic();
+	}
 
+	private void Start()
+	{
 		ShuffleRubiksCube();
 		m_startTime = DateTime.UtcNow;
 
@@ -62,27 +67,46 @@ public class RubiksCubeManager : MonoBehaviour
 			Application.Quit();
 		}
 
-		if ((!m_isApplyingSequence && m_rubiksLogic.IsSolved))
+		bool isSolved = m_rubiksLogic.IsSolved;
+
+		if (!m_isApplyingSequence && m_wasSolved != isSolved)
 		{
-			// Solved
-			DateTime now = DateTime.UtcNow;
-			TimeSpan timeSpan = now - m_startTime;
-			if (timeSpan.Hours > 0)
-			{
-				m_timeText.text = $"{TEXT_TIME} : {timeSpan.Hours}:{timeSpan.Minutes}:{timeSpan.Seconds}";
-			}
-			else
-			{
-				m_timeText.text = $"{TEXT_TIME} : {timeSpan.Minutes}:{timeSpan.Seconds}.{timeSpan.Milliseconds}";
-			}
-			m_victoryPopup.SetActive(true);
+			m_wasSolved = isSolved;
+			ResetHighlights();
+			DisplayVictory();
 		}
+	}
+
+	private void ResetHighlights()
+	{
+		foreach (RubiksFaceRotation.RubiksFace face in Enum.GetValues(typeof(RubiksFaceRotation.RubiksFace)))
+		{
+			if (face != RubiksFaceRotation.RubiksFace.NONE)
+			{
+				m_rubiksFaceRotation.SetHighlightMaterial(face, false);
+			}
+		}
+	}
+
+	private void DisplayVictory()
+	{
+		DateTime now = DateTime.UtcNow;
+		TimeSpan timeSpan = now - m_startTime;
+		if (timeSpan.Hours > 0)
+		{
+			m_timeText.text = $"{TEXT_TIME} : {timeSpan.Hours}:{timeSpan.Minutes}:{timeSpan.Seconds}";
+		}
+		else
+		{
+			m_timeText.text = $"{TEXT_TIME} : {timeSpan.Minutes}:{timeSpan.Seconds}.{timeSpan.Milliseconds}";
+		}
+		m_victoryPopup.SetActive(true);
 	}
 
 	private string GenerateShuffleSequence()
 	{
 		string outputSequence = "";
-		int limit = s_rand.Next(10, 15);
+		int limit = s_rand.Next(13, 16);
 		for (int i = 0; i < limit; i++)
 		{
 			int colorIndex = s_rand.Next(FaceColors.Length);
@@ -144,6 +168,7 @@ public class RubiksCubeManager : MonoBehaviour
 
 	private IEnumerator ApplySequence(List<RubiksColor> colors, List<FaceRotation> directions)
 	{
+		yield return new WaitForEndOfFrame();
 		for (int i = 0; i < colors.Count; i++)
 		{
 			yield return new WaitUntil(() => RubiksCubeRotation.CurrentRotationState == RubiksCubeRotation.RotationState.IDLE);
@@ -202,14 +227,21 @@ public class RubiksCubeManager : MonoBehaviour
 
 	private void Rotate(RubiksFaceRotation.RubiksFace faceToRotate, RubiksColor faceColor, GameObject faceGO, FaceRotation direction)
 	{
-		m_rubiksFaceRotation.Rotate(faceToRotate, direction, faceGO, m_shuffleRotationDuration);
-		if (direction == FaceRotation.CLOCKWISE)
+		m_rubiksFaceRotation.Rotate(faceToRotate, direction, faceGO, m_shuffleRotationDuration, OnRotationFinished);
+	}
+
+	private void OnRotationFinished(RubiksColor color, FaceRotation direction)
+	{
+		if (color != RubiksColor.NONE)
 		{
-			m_rubiksLogic.RotateFaceClockWise(faceColor);
-		}
-		else
-		{
-			m_rubiksLogic.RotateFaceCounterClockWise(faceColor);
+			if (direction == FaceRotation.CLOCKWISE)
+			{
+				m_rubiksLogic.RotateFaceClockWise(color);
+			}
+			else if (direction == FaceRotation.COUNTERCLOCKWISE)
+			{
+				m_rubiksLogic.RotateFaceCounterClockWise(color);
+			}
 		}
 	}
 
@@ -223,6 +255,7 @@ public class RubiksCubeManager : MonoBehaviour
 	private bool m_isApplyingSequence = false;
 	private DateTime m_startTime = new DateTime();
 	private const string TEXT_TIME = "Rubiks solved in";
+	private bool m_wasSolved = false;
 
 	[SerializeField]
 	private RubiksFaceRotation m_rubiksFaceRotation = null;
